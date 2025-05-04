@@ -1,0 +1,197 @@
+ci1215 - Sistemas Operacionais - 
+1o semestre de 2025    
+por W.Zola/UFPR
+
+trabalho 1a: barreira e fila de uso FIFO para processos (v1.2)
+----------------------------------
+Histórico:
+- v1.0 a versão inicial da especificação
+- v1.1 apenas escrito corretamente a data de entrega
+- v1.2 melhor especificado o que deve ser impresso
+       no loop de usos dos recursos em ordem FIFO
+      
+----------------------------------  
+Data do enunciado: 25/abr/2025
+Data da entrega: 09/maio/2025 (serão 2 semanas!) 
+
+Você pode fazer sozinho OU em DUPLA.
+NÃO serão aceitos trabalhos com mais de 2 alunos.
+---------------------------------
+
+Objetivos:
+// Trabalhar com processos, semaforos do SO,
+// alocar e usar "shared memory" entre os processos,
+// fazer implementação de 
+//   - uma primitiva de barreira para
+//     um conjunto de processos
+//   - primitivas de uso exclusivo e liberação de 
+//     recurso associado a uma fila FIFO para processos
+//     que ESPERAM pelo recurso se estiver em uso
+
+//  Implementar tudo isso em um sistema de processos
+//  e demonstrar que funciona
+
+// Esse trabalho será composto de 2 partes
+//   A parte A) 
+//   deve implementar uma primitiva de barreira para
+//     sincronizar um conjunto de processos
+//     verificar a descriçao mais detalhada
+//     dessa primitiva (estrutura e funcoes)
+//     conforme descrito no 
+//     "Exercício 7: barreira para processos"
+//     
+//   A parte B) 
+//   deve implementar primitivas de uso exclusivo e liberação de 
+//     recurso associado a uma fila FIFO para processos
+//     que ESPERAM pelo recurso se estiver em uso
+//     (o mesmo conjunto de processos deve operar com a barreira e
+//      primitivas de uso/liberação de recurso)
+//     verificar a descriçao mais detalhada
+//     de COMO implementar essas primitivas (estrutura e funcoes)
+//     conforme descrito no 
+//     "Exercício 6: FIFO Queue de processos (versao 1.2)"
+//     ou mais recente, caso exista
+//     OBS: no exercicio "pode" ter outros nomes de funcoes 
+//          para trabalhar com filas, você DEVE verificar a funcionalidade
+//          e usar os nomes adequados definidos NESSA especificacao.
+//
+//   Juntar as duas partes no mesmo programa fonte
+//   os processos devem executar 
+//       a parte A) e depois a parte B)
+//
+//   Preparar um bom RELATORIO
+//
+//
+//   MAIS detalhes de implementação
+//   ------------------------------
+//   
+//   O processo 0 e seus filhos deve funcionar como descrito acima
+//   e nos exercicios de barreira de processos e fila fifo de processos
+//
+//   porém como o exercicio de fila fifo de processos era APENAS um exercicio
+//   ele nao detalhou muito sobre o que os processos devem fazer
+//   na parte da fila fifo. 
+//   Entao esses detalhes sao apresentados ABAIXO: 
+//       
+   Ao sair da barreira os processos devem se dirigir à parte do codigo
+que usam o recurso (loop de uso, abaixo) bem como uma fila de espera associada 
+ao recurso (fila em ordem FIFO).
+Como foi definido no exercicio o uso do recurso é EXCLUSIVO 
+(apenas um processo usa por vez) e em ordem FIFO
+deve estar dentro de um loop e nesse loop os processos entram na fila FIFO, 
+se for o caso de esperar. 
+Ocorre que seria necessario algum processo liberar o primeiro da fila,
+assim o primeiro a "entrar" deve passar direto e iniciar uso,
+e ao terminar o uso deve sinalizar o fato chamando a funcao
+termina_uso(...).
+Note que o primeiro processo que passar pela funcao inicia_uso(...) 
+está "conceitualmente" dentro da regiao de uso, 
+mas nao fica esperando na fila, pois na verdade ele estah usando.
+ 
+- Simularemos o uso dos recursos com nas partes (A) (B) e (C)
+  executando um sleep de tempo aleatório entre 1 e 3 segundos
+  e imprimindo o numero logico do processo e quantos segundos vai dormir e
+  se está usando o recurso ou se está na parte (A) (B) ou (C) do loop
+  deve imprimir o numero da iteração do processo no uso do recurso.
+  Cada processo deve usar o recurso 3 vezes no loop
+  ou seja, passa 3 vezes no loop de uso do recurso.
+  
+  Pseudo-codigo com mais detalhe
+  -------------------------------
+  
+  1) Processo pai cria estruturas compartilhadas,
+     inicializa a barreira e a fila fifo,
+     (ou seja as variáveis em shared memory)
+     e cria os filhos
+  
+     inicializa também a variavel inteira (recurso) com um numero
+     aleatorio indicando o numero do recurso a ser usado. 
+     Todos os processos devem usar o mesmo numero de recurso,
+     ou seja, essa variável PODE ser herdada pelos processo filhos,
+     assim a variável recurso NAO precisa estar em shared memory.
+       int recurso = ... numero aleatorio inteiro qualquer ...
+     
+     a ultima coisa a fazer pelo processo antes de chegar 
+     na barreira e' imprimir:  
+     printf( "--Processo: %d chegando na barreira\n", Pi );
+      
+  2) Todos os processos chegam na barreira
+     ao sair da barreira o processo deve imprimir
+     printf( "**Processo: %d saindo da barreira\n", Pi );
+     
+  3) Ao acordar da barreira um processo deve se dirigir 
+     ao loop de usos FIFO de recurso.
+     
+     // Processo Pi onde Pi é seu número lógico
+     
+     int uso;    // uso é variável local
+     for( uso=0; uso<3; uso++ ) {  // esse é o loop de uso FIFO do recurso
+                                   // deve usar somente 3 vezes o recurso
+     
+        // (A) simula executar algo no (prologo)
+        - sorteia um inteiro aleatorio s (0,1,2 ou 3)
+        imprime: printf( "Processo: %d Prologo: %d de %d segundos\n", Pi, uso, s );
+        - dorme s segundos
+        inicia_uso( recurso, &fila );
+                          // - chama a funcao que indica a tentativa de
+                          //   inicio de uso do recurso pelo processo
+                          // - o processo deve entrar na funcao e lá dentro
+                          //   da função será tomada a decisao se o processo
+                          //   inicia o uso imediatamente ou 
+                          //    se ele vai esperar na fila FIFO   
+                          // - ou seja, entra na funcao e vai esperar na 
+                          //   fila de espera FIFO
+                          //   ou passa direto se estiver vazia
+                          // - note que, conceitualmente
+                          //   o primeiro que passar pela espera
+                          //   estah DENTRO da fila, mas nao fica bloqueado
+                          //   na espera, ele passa direto
+                          
+                          // esclarecendo: 
+                          //  - o processo p entra na função e sai imediatamente
+                          //    se ele for o primeiro da fila na hora que ele chegou
+                          //  - se o processo (p) entrar na função e 
+                          //    já existir algum outro processo (pp)
+                          //    que chegou antes dele, 
+                          //    esse processo (p) deve *esperar* na fila em ordem FIFO 
+                          //    (SEM esperas OCUPADAS) 
+                          
+           // (B) simula usar o recurso com exclusividade
+           - sorteia um inteiro aleatorio s (0,1,2 ou 3)
+           imprime: printf( "Processo: %d USO: %d por %d segundos\n", Pi, uso, s );
+           - dorme s segundos
+        
+        termina_uso( recurso, &fila );  
+                                  // o processo está indicando que terminou de usar
+                                  // o recurso, ao chamar essa funcao o processo 
+                                  // estah sinalizando sua "saida" do uso
+                                  // (i.e. termino de uso) 
+                                  // sinaliza e causa a liberacao do primeiro
+                                  // da fila (caso haja processo esperando)
+                                  
+        // (C) simula executar algo (epilogo)                          
+        - sorteia um inteiro aleatorio s (0,1,2 ou 3)
+        imprime: printf( "Processo: %d Epilogo: %d de %d segundos\n", Pi, uso, s );
+        - dorme s segundos
+                                  
+      }
+      ao sair do loop de usos o processo deve imprimir
+      printf( "--Processo: %d chegando novamente na barreira\n", Pi );
+      
+      4) Todos os processos chegam na barreira NOVAMENTE 
+         ao sair da barreira o processo deve imprimir
+         printf( "++Processo: %d saindo da barreira novamente\n", Pi );
+
+     OBS: note que a barreira eh usada 2 vezes por cada processo
+          Só pode have UMA estrutura de barreira. Isso garante que
+          sua barreira possa ser utilizada(ou reutilizada) mais de uma vez.
+  
+      5) O programa main (APENAS O MAIN) deve esperar todos os filhos terminarem,
+         e APENAS O MAIN deve imprimir na tela os numeros (logico e PID) 
+         do filho que terminou, NA MESMA ordem de termino!
+         
+         assim:
+         printf( "+++ Filho de número lógico %d e pid %d terminou!\n", Pi, pid_do_filho );
+         ...
+
+
