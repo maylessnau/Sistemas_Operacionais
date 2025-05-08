@@ -1,18 +1,15 @@
 #include "fifo.h"
 
-void init_fifoQ(FifoQT *F, int tamanho)
+void init_fifoQ(FifoQT *F)
 {
     F->head = NULL;
     F->tail = NULL;
-    F->tamanho = tamanho;
     // mutex com compartilhamento entre processos (pshared = 1)
-    if (sem_init(&(F->lock), 1, 1) != 0) {
-        perror("sem_init");
-        exit(EXIT_FAILURE);
-    }
+    sem_init(&(F->lock), 1, 1);
+  
 }
 
-void espera(FifoQT *F, int id)
+void inicia_uso(int recurso, FifoQT *F)
 {
     int should_wait;
 
@@ -20,8 +17,10 @@ void espera(FifoQT *F, int id)
     should_wait = (F->head != NULL);
     sem_post(&F->lock);
 
+
+
     if (!should_wait) {
-        //printf("[INFO] Thread %d passou direto (fila vazia)\n", id);
+        //printf("[INFO] Processo %d passou direto (fila vazia)\n", id);
         return;
     }
 
@@ -31,8 +30,8 @@ void espera(FifoQT *F, int id)
         exit(EXIT_FAILURE);
     }
 
-    me->id = id;
     me->next = NULL;
+    // inicializa o semaforo do proccesso bloqueado
     sem_init(&me->sem, 0, 0);
 
     sem_wait(&F->lock);
@@ -43,11 +42,12 @@ void espera(FifoQT *F, int id)
         F->head = me;
     sem_post(&F->lock);
 
-    printf("[INFO] Thread %d adicionada à fila e vai ESPERAR\n", id);
+    //printf("[INFO] Processo %d adicionada à fila e vai ESPERAR\n", id);
     sem_wait(&me->sem);
-}
+}   
 
-void liberaPrimeiro(FifoQT *F)
+
+void termina_uso(int recurso, FifoQT *F)
 {
     sem_wait(&F->lock);
 
@@ -63,10 +63,12 @@ void liberaPrimeiro(FifoQT *F)
 
     sem_post(&F->lock);
 
-    printf("[INFO] Liberando semáforo da Thread %d\n", first->id);
+    printf("[INFO] Liberando semáforo da Processo %d\n", first->id);
 
     sem_post(&first->sem);
     sem_destroy(&first->sem);
-    printf("[INFO] Nodo da Thread %d destruído\n", first->id);
+    printf("[INFO] Nodo da Processo %d destruído\n", first->id);
     free(first);
+
+
 }

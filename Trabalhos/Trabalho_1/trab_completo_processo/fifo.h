@@ -23,16 +23,10 @@ typedef struct node_s {
 typedef struct fifoQ_s {
     Node *head;                  /* índice do primeiro, -1 se vazio */
     Node *tail;                  /* índice do último, -1 se vazio   */
-    int tamanho;
     sem_t lock;      /* mutex process‑shared            */
 } FifoQT;
 
-// typedef struct shmseg {
-//     FifoQT fila;     // fila propriamente dita     
-//     Node *nodes;    // um nó fixo por processo     
-// } fifo_shared;
 
-
-void init_fifoQ(FifoQT *F, int tamanho);
-void espera(FifoQT *F, int idx);
-void liberaPrimeiro(FifoQT *F);
+void init_fifoQ(FifoQT *F);
+void inicia_uso(int recurso,FifoQT *F);
+void termina_uso(int recurso, FifoQT *F);

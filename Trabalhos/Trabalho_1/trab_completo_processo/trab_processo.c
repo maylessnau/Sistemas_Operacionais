@@ -16,7 +16,8 @@ typedef struct {
 } shared_data_t;
 
 // Função do Proc cliente
-void* ciclo_cliente(shared_data_t *S, int id) {
+void* ciclo_cliente(shared_data_t *S, int recurso, int id) {
+
 
     /* --- fase de preparação / primeira barreira ---------------- */
     srand(time(NULL) ^ (pthread_self() << 16));
@@ -34,20 +35,14 @@ void* ciclo_cliente(shared_data_t *S, int id) {
         printf( "Processo: %d Prologo: %d de %d segundos\n", id, i, s_prologo );
         sleep(s_prologo);
 
-        // IMPLEMENTAR
-        //inicia_uso( recurso, &fila );  // recurso (?) - no enunciado
+        inicia_uso( recurso, &S->fila );  
         
-        espera(&S->fila, id);
-
         // (B) utilização exclusiva
         int s_utilizacao = rand() % 4; 
         printf( "Processo: %d USO: %d por %d segundos\n", id, i, s_utilizacao );
         sleep(s_utilizacao);
 
-        // IMPLEMENTAR
-        //termina_uso( recurso, &fila ); // recurso (?) - no enunciado
-
-        liberaPrimeiro(&S->fila);
+        termina_uso( recurso, &S->fila ); 
 
         // (C) epílogo
         int s_epilogo = rand() % 4; 
@@ -62,19 +57,13 @@ void* ciclo_cliente(shared_data_t *S, int id) {
     process_barrier(&S->barr);
     printf( "++Processo: %d saindo da barreira novamente\n", id );
 
-    S->contador += 1;
-    printf("Proc %d: contador atual (compartilhado) = %d\n", id, S->contador);
-
-    
     return NULL;
 }
 
 
 int main() {
 
- // Le o numero de processos da linha de comando 
- 
-    // TENTATIVA DE USAR SHARED MEMORY DO LINK DO PROF (N DEU CERTO K)
+     
     int shmid;
     shared_data_t *shared;
    
@@ -83,16 +72,17 @@ int main() {
     SHM_KEY, sizeof(shared_data_t), 0644 | IPC_CREAT);
  
 
+    // Retorna um identificador para o seg. de memoria compartilhada
     shmid = shmget(SHM_KEY, sizeof(shared_data_t), IPC_CREAT|0644);
     if (shmid == -1) {
         perror("Shared memory");
         return 1;
     }
 
-    // Attach to the segment to get a pointer to it.
+    // Conecta o id ao segmento para obter um ponteiro para ele.
     shared = (shared_data_t *) shmat(shmid, NULL, 0);
     if (shared == (void *) -1) {
-         perror("Shared memory attach");
+        perror("Shared memory attach");
         return 1;
     }
 
@@ -104,7 +94,7 @@ int main() {
 
 
     /* 2. Inicializa estruturas antes do fork()       */
-    init_fifoQ(&shared->fila, NUM_PROCS);
+    init_fifoQ(&shared->fila);
     // Apenas o processo pai inicializa a barreira (main)
     init_barr(&shared->barr, NUM_PROCS);
 
@@ -129,7 +119,7 @@ int main() {
         pid_t pid = fork();
         if (pid == 0) {
             nProc = i;
-            ciclo_cliente(shared, i);
+            ciclo_cliente(shared, recurso, i);
             exit(0);
         }
         pids[i] = pid;
@@ -139,7 +129,7 @@ int main() {
     printf("Processo logico %d, PID=%d, PPID=%d\n", nProc, getpid(), getppid());
 
     if (nProc == 0) {
-        ciclo_cliente(shared, 0);  // pai participa  -- DUVIDA: o pai tambem participa?
+        ciclo_cliente(shared, recurso, 0);  // pai participa  -- DUVIDA: o pai tambem participa?
     
         // Espera cada filho terminar, na ordem que terminarem
         for (int i = 1; i < NUM_PROCS; ++i) {
