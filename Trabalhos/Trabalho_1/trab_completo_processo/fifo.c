@@ -14,16 +14,9 @@ void inicia_uso(int recurso, FifoQT *F)
     int should_wait;
 
     sem_wait(&F->lock);
-    should_wait = (F->head != NULL);
-    sem_post(&F->lock);
-
-
-
-    if (!should_wait) {
-        //printf("[INFO] Processo %d passou direto (fila vazia)\n", id);
-        return;
-    }
-
+    //should_wait = (F->head != NULL);
+    //printf ("should_wait: %d", should_wait);
+ 
     Node *me = malloc(sizeof(Node));
     if (!me) {
         perror("malloc");
@@ -31,19 +24,25 @@ void inicia_uso(int recurso, FifoQT *F)
     }
 
     me->next = NULL;
-    // inicializa o semaforo do proccesso bloqueado
+
+    // inicializa o semaforo do processo bloqueado
     sem_init(&me->sem, 0, 0);
 
-    sem_wait(&F->lock);
     if (F->tail)
         F->tail->next = me;
     F->tail = me;
+
     if (F->head == NULL)
         F->head = me;
-    sem_post(&F->lock);
 
-    //printf("[INFO] Processo %d adicionada à fila e vai ESPERAR\n", id);
-    sem_wait(&me->sem);
+    should_wait = (F->head != me); 
+    sem_post(&F->lock); 
+    if (should_wait) {
+        sem_wait(&me->sem);
+
+    }
+
+    return;
 }   
 
 
@@ -51,24 +50,24 @@ void termina_uso(int recurso, FifoQT *F)
 {
     sem_wait(&F->lock);
 
-    if (F->head == NULL) {
+    Node *first = F->head;
+
+    if (first == NULL) {
+        // Fila já está vazia, nada a liberar
         sem_post(&F->lock);
         return;
     }
 
-    Node *first = F->head;
     F->head = first->next;
+
+    // Se a fila ficou vazia, atualiza o tail também
     if (F->head == NULL)
         F->tail = NULL;
 
     sem_post(&F->lock);
 
-    printf("[INFO] Liberando semáforo da Processo %d\n", first->id);
+    sem_post(&first->sem);       // Libera o próximo processo
+    sem_destroy(&first->sem);    // Destroi o semáforo do nó atual
 
-    sem_post(&first->sem);
-    sem_destroy(&first->sem);
-    printf("[INFO] Nodo da Processo %d destruído\n", first->id);
     free(first);
-
-
 }

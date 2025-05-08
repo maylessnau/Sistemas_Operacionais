@@ -12,12 +12,10 @@
 typedef struct {
     FifoQT fila;
     barrier_t barr;
-    int contador;
 } shared_data_t;
 
 // Função do Proc cliente
 void* ciclo_cliente(shared_data_t *S, int recurso, int id) {
-
 
     /* --- fase de preparação / primeira barreira ---------------- */
     srand(time(NULL) ^ (pthread_self() << 16));
@@ -37,10 +35,11 @@ void* ciclo_cliente(shared_data_t *S, int recurso, int id) {
 
         inicia_uso( recurso, &S->fila );  
         
-        // (B) utilização exclusiva
-        int s_utilizacao = rand() % 4; 
-        printf( "Processo: %d USO: %d por %d segundos\n", id, i, s_utilizacao );
-        sleep(s_utilizacao);
+            // REGIÃO CRÍTICA
+            // (B) utilização exclusiva
+            int s_utilizacao = rand() % 4; 
+            printf( "Processo: %d USO: %d por %d segundos\n", id, i, s_utilizacao );
+            sleep(s_utilizacao);
 
         termina_uso( recurso, &S->fila ); 
 
@@ -50,9 +49,7 @@ void* ciclo_cliente(shared_data_t *S, int recurso, int id) {
         sleep(s_epilogo);
     }
 
-    printf("Proc %d: finalizou todos os ciclos.\n", id);
-
-    /* --------- segunda barreira (todos concluíram o laço) ------- */
+        /* --------- segunda barreira (todos concluíram o laço) ------- */
     printf( "--Processo: %d chegando novamente na barreira\n", id );
     process_barrier(&S->barr);
     printf( "++Processo: %d saindo da barreira novamente\n", id );
@@ -63,15 +60,14 @@ void* ciclo_cliente(shared_data_t *S, int recurso, int id) {
 
 int main() {
 
-     
+
     int shmid;
     shared_data_t *shared;
-   
-    printf("Tamanho de shared_data_t: %lu\n", sizeof(shared_data_t));
-    printf("shmget args → key=0x%x, size=%lu, flags=0%o\n",
-    SHM_KEY, sizeof(shared_data_t), 0644 | IPC_CREAT);
+    
+    //printf("Tamanho de shared_data_t: %lu\n", sizeof(shared_data_t));
+    //printf("shmget args → key=0x%x, size=%lu, flags=0%o\n",
+    //SHM_KEY, sizeof(shared_data_t), 0644 | IPC_CREAT);
  
-
     // Retorna um identificador para o seg. de memoria compartilhada
     shmid = shmget(SHM_KEY, sizeof(shared_data_t), IPC_CREAT|0644);
     if (shmid == -1) {
@@ -86,20 +82,10 @@ int main() {
         return 1;
     }
 
-    //shared_data_t *shared = mmap(NULL, sizeof(shared_data_t),
-    //                         PROT_READ | PROT_WRITE,
-    //                        MAP_SHARED | MAP_ANONYMOUS,
-    //                         -1, 0);
-   
-
-
     /* 2. Inicializa estruturas antes do fork()       */
     init_fifoQ(&shared->fila);
     // Apenas o processo pai inicializa a barreira (main)
     init_barr(&shared->barr, NUM_PROCS);
-
-    // Inicializa a semente do gerador de números aleatórios
-    srand(time(NULL));
 
     // Gera um número aleatório entre 0 e 99
     int recurso = rand() % 100;
@@ -111,7 +97,6 @@ int main() {
     // assim a variável recurso NAO precisa estar em shared memory.
     // int recurso = ... numero aleatorio inteiro qualquer 
 
-    shared->contador = 0;  // inicia com 0
     int nProc = 0;  
     // fork para criar os processos filhos
     pid_t pids[NUM_PROCS];
@@ -125,13 +110,10 @@ int main() {
         pids[i] = pid;
     }
 
-    // processo se identifica
-    printf("Processo logico %d, PID=%d, PPID=%d\n", nProc, getpid(), getppid());
-
     if (nProc == 0) {
-        ciclo_cliente(shared, recurso, 0);  // pai participa  -- DUVIDA: o pai tambem participa?
-    
-        // Espera cada filho terminar, na ordem que terminarem
+        ciclo_cliente(shared, recurso, 0);  
+
+        // Espera cada filho terminar
         for (int i = 1; i < NUM_PROCS; ++i) {
             int status;
             pid_t pid_terminou = wait(&status);  // espera qualquer filho
@@ -149,8 +131,7 @@ int main() {
         sem_destroy(&shared->fila.lock);
         sem_destroy(&shared->barr.mutex);
         sem_destroy(&shared->barr.semaforo);
-        munmap(shared, sizeof(shared_data_t));
-        puts("Pai: todos os processos finalizaram.");
+        shmctl(shmid, IPC_RMID, NULL);
     }
     
     return 0;
