@@ -1,3 +1,5 @@
+#ifndef BARRIER_H
+#define BARRIER_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +26,7 @@ void init_barr (barrier_t *barr, int n);
 void process_barrier(barrier_t *barr);
 
 
-
+#endif
 
 
 

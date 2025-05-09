@@ -3,23 +3,22 @@
 
 #include "barrier.h"
 #include "fifo.h"
+#include <pthread.h>
 
-#define SHM_KEY 0x4567
-#define NUM_PROCS  5           /* Nº de processos “clientes” */
-#define MAX_USOS   3           /* ciclos de uso do recurso   */
-
+#define SHM_KEY 0x4567 // chave da area compartilhada
+#define MAX_USOS   3  // ciclos de uso do recurso  
 
 typedef struct {
-    FifoQT fila;
+    FifoQT fila; // fazer um vetor 
     barrier_t barr;
 } shared_data_t;
 
 // Função do Proc cliente
-void* ciclo_cliente(shared_data_t *S, int recurso, int id) {
+void* ciclo_cliente(shared_data_t *S, int recurso, int id, int num_procs) {
 
     /* --- fase de preparação / primeira barreira ---------------- */
     srand(time(NULL) ^ (pthread_self() << 16));
-    int s = rand() % NUM_PROCS;
+    int s = rand() % num_procs;
     sleep(s);
 
     printf( "--Processo: %d chegando na barreira\n", id );
@@ -34,13 +33,11 @@ void* ciclo_cliente(shared_data_t *S, int recurso, int id) {
         sleep(s_prologo);
 
         inicia_uso( recurso, &S->fila );  
-        
             // REGIÃO CRÍTICA
             // (B) utilização exclusiva
             int s_utilizacao = rand() % 4; 
             printf( "Processo: %d USO: %d por %d segundos\n", id, i, s_utilizacao );
             sleep(s_utilizacao);
-
         termina_uso( recurso, &S->fila ); 
 
         // (C) epílogo
@@ -54,20 +51,24 @@ void* ciclo_cliente(shared_data_t *S, int recurso, int id) {
     process_barrier(&S->barr);
     printf( "++Processo: %d saindo da barreira novamente\n", id );
 
+    // quem chamou a funcao exit primeiro
+
     return NULL;
 }
 
+int main(int argc, char *argv[]) {
 
-int main() {
+    if (argc != 2) {
+        // imprime tipo "Uso: ./programa <num_processos>"
+        fprintf(stderr, "Uso: %s <num_threads>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
 
+    int num_procs = atoi(argv[1]);  // Le o numero de processos da linha de comando 
 
     int shmid;
     shared_data_t *shared;
-    
-    //printf("Tamanho de shared_data_t: %lu\n", sizeof(shared_data_t));
-    //printf("shmget args → key=0x%x, size=%lu, flags=0%o\n",
-    //SHM_KEY, sizeof(shared_data_t), 0644 | IPC_CREAT);
- 
+  
     // Retorna um identificador para o seg. de memoria compartilhada
     shmid = shmget(SHM_KEY, sizeof(shared_data_t), IPC_CREAT|0644);
     if (shmid == -1) {
@@ -82,44 +83,36 @@ int main() {
         return 1;
     }
 
-    /* 2. Inicializa estruturas antes do fork()       */
-    init_fifoQ(&shared->fila);
-    // Apenas o processo pai inicializa a barreira (main)
-    init_barr(&shared->barr, NUM_PROCS);
+    // inicializa as estruturas compartilhadas
+    init_fifoQ(&shared->fila, num_procs);
+    init_barr(&shared->barr, num_procs);
 
     // Gera um número aleatório entre 0 e 99
     int recurso = rand() % 100;
-    // IMPLEMENTAR
-    // inicializa também a variavel inteira (recurso) com um numero
-    // aleatorio indicando o numero do recurso a ser usado. 
-    // Todos os processos devem usar o mesmo numero de recurso,
-    // ou seja, essa variável PODE ser herdada pelos processo filhos,
-    // assim a variável recurso NAO precisa estar em shared memory.
-    // int recurso = ... numero aleatorio inteiro qualquer 
-
+ 
     int nProc = 0;  
     // fork para criar os processos filhos
-    pid_t pids[NUM_PROCS];
-    for (int i = 1; i < NUM_PROCS; i++) {
+    pid_t pids[num_procs];
+    for (int i = 1; i < num_procs; i++) {
         pid_t pid = fork();
         if (pid == 0) {
             nProc = i;
-            ciclo_cliente(shared, recurso, i);
+            ciclo_cliente(shared, recurso, i, num_procs);
             exit(0);
         }
         pids[i] = pid;
     }
 
     if (nProc == 0) {
-        ciclo_cliente(shared, recurso, 0);  
+        ciclo_cliente(shared, recurso, 0, num_procs);  
 
         // Espera cada filho terminar
-        for (int i = 1; i < NUM_PROCS; ++i) {
+        for (int i = 1; i < num_procs; ++i) {
             int status;
             pid_t pid_terminou = wait(&status);  // espera qualquer filho
     
             // Descobre o número lógico correspondente ao PID
-            for (int j = 1; j < NUM_PROCS; ++j) {
+            for (int j = 1; j < num_procs; ++j) {
                 if (pids[j] == pid_terminou) {
                     printf("+++ Filho de número lógico %d e pid %d terminou!\n", j, pid_terminou);
                     break;
