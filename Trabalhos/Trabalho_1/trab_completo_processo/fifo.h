@@ -16,16 +16,15 @@
 
 typedef struct node_s {
     sem_t sem;               /* semáforo que acorda o dono do nó */
-    struct node_s *next;             /* índice do próximo na fila, -1 se nulo */
-    int id;                /* id (1..N) para mensagens */
+    int shmid_next;  // guarda o shmid do próximo nó
+    int id;          // PARA DEBUG REMOVER DPS
 } Node;
 
 typedef struct fifoQ_s {
-    Node *head;                  /* índice do primeiro, -1 se vazio */
-    Node *tail;                  /* índice do último, -1 se vazio   */
-    sem_t lock;      /* mutex process‑shared            */
+    int shmid_head;
+    int shmid_tail;
+    sem_t lock;
 } FifoQT;
-
 
 void init_fifoQ(FifoQT *F);
 void inicia_uso(int recurso,FifoQT *F);
