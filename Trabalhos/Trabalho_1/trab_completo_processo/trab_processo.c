@@ -83,8 +83,6 @@ int main(int argc, char *argv[]) {
 
     int shmid;
     shared_data_t *shared;
-  
-    printf("Tamanho de shared_data_t: %lu bytes\n", sizeof(shared_data_t));
 
     // Retorna um identificador para o seg. de memoria compartilhada
     shmid = shmget(SHM_KEY, sizeof(shared_data_t), IPC_CREAT|0644);
