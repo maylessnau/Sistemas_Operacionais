@@ -1,5 +1,6 @@
 #include "fifo.h"
 #include <stdio.h>
+
 void init_fifoQ(FifoQT *F, int tamanho) {
     F->usando = 0;
     F->head = 0;
@@ -12,11 +13,11 @@ void init_fifoQ(FifoQT *F, int tamanho) {
     sem_init(&F->lock, 1, 1);
 }
 
-
 void inicia_uso(int recurso, FifoQT *F) {
+
     sem_wait(&F->lock);
 
-    // ee o recurso está livre e a fila está vazia, usa direto
+    // se o recurso está livre e a fila está vazia, usa direto
     if (F->usando == 0 && F->head == F->tail) {
         F->usando = 1;
         sem_post(&F->lock);
@@ -32,9 +33,8 @@ void inicia_uso(int recurso, FifoQT *F) {
     sem_wait(&F->fila[pos].sem);  // espera ser liberado
 }
 
-
-
 void termina_uso(int recurso, FifoQT *F) {
+
     sem_wait(&F->lock);
 
     // verifica se a fila esta vazia
@@ -51,6 +51,3 @@ void termina_uso(int recurso, FifoQT *F) {
 
     sem_post(&F->fila[pos].sem);
 }
-
-
-
