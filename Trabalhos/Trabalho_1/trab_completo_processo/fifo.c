@@ -7,7 +7,7 @@ void init_fifoQ(FifoQT *F, int tamanho) {
     F->tail = 0;
 
     for (int i = 0; i < MAX_PROCS; i++) {
-        sem_init(&F->fila[i].sem, 1, 0);  // começa bloqueado
+        sem_init(&F->fila[i], 1, 0);  // começa bloqueado
     }
 
     sem_init(&F->lock, 1, 1);
@@ -30,7 +30,7 @@ void inicia_uso(int recurso, FifoQT *F) {
 
     sem_post(&F->lock);
 
-    sem_wait(&F->fila[pos].sem);  // espera ser liberado
+    sem_wait(&F->fila[pos]);  // espera ser liberado
 }
 
 void termina_uso(int recurso, FifoQT *F) {
@@ -49,5 +49,5 @@ void termina_uso(int recurso, FifoQT *F) {
 
     sem_post(&F->lock);
 
-    sem_post(&F->fila[pos].sem);
+    sem_post(&F->fila[pos]);
 }

@@ -9,16 +9,17 @@
 #define MAX_PROCS 64  
 
 
-typedef struct {
-    int id;        // ID logico do processo (? nao sei se precisa)
-    sem_t sem;     // semáforo do processo
-} Processo;
+// typedef struct {
+//     int id;        // ID logico do processo (? nao sei se precisa)
+//     sem_t sem;     // semáforo do processo
+// } Processo;
 
 typedef struct {
     int usando;
     int head; // indica o próximo processo a ser liberado.
     int tail; // indica a próxima posição disponível.
-    Processo fila[MAX_PROCS];  // Fila circular de structs
+    //Processo fila[MAX_PROCS];  // Fila circular de structs
+    sem_t fila[MAX_PROCS];  // Fila circular de semaforos para cada processo
     sem_t lock;
 } FifoQT;
 
