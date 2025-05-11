@@ -1,12 +1,14 @@
 #include "fifo.h"
 #include <stdio.h>
 
-void init_fifoQ(FifoQT *F, int tamanho) {
+void init_fifoQ(FifoQT *F, int num_procs) {
     F->usando = 0;
     F->head = 0;
     F->tail = 0;
+    F->num_procs = num_procs;
 
-    for (int i = 0; i < MAX_PROCS; i++) {
+    // inicializa os semaforos dos procs
+    for (int i = 0; i < num_procs; i++) {
         sem_init(&F->fila[i], 1, 0);  // começa bloqueado
     }
 
@@ -26,7 +28,7 @@ void inicia_uso(int recurso, FifoQT *F) {
 
     // caso contrário, entra na fila
     int pos = F->tail;
-    F->tail = (F->tail + 1) % MAX_PROCS; // fila circular(?)
+    F->tail = (F->tail + 1) % F->num_procs; 
 
     sem_post(&F->lock);
 
@@ -45,7 +47,7 @@ void termina_uso(int recurso, FifoQT *F) {
     }
 
     int pos = F->head; // pega a posição do próximo processo da fila
-    F->head = (F->head + 1) % MAX_PROCS; // avança o ponteiro da fila circular
+    F->head = (F->head + 1) % F->num_procs; // avança o ponteiro da fila circular
 
     sem_post(&F->lock);
 

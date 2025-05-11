@@ -1,29 +1,24 @@
+// Autoras:
+// Barbara Reis dos Santos - GRR: 20222538 
+// Mayara Lessnau de Figueiredo Neves - GRR: 
+
 #include "barrier.h"
 #include "fifo.h"
-#include <pthread.h>
 
 #define SHM_KEY 0x4567   // chave da area de memoria compartilhada
 #define MAX_USOS   3     // ciclos de uso do recurso  
-#define MAX_TERMINOS 100 // tamanho do vetor usado pra saber a ordem de quem terminou
 
 typedef struct {
     FifoQT fila;
     barrier_t barr;
-    int ordem_termino[MAX_TERMINOS];
-    int prox_indice_termino;    // guarda em qual posição o vetor de termino parou
-    sem_t lock_termino;         // pra evitar race condition
 } shared_data_t;
 
-// typedef struct {
-//     FifoQT fila;
-//     barrier_t barr;
-// } shared_data_t;
-
-// Função do Proc cliente
+// função do Proc cliente
 void* ciclo_cliente(shared_data_t *S, int recurso, int id, int num_procs) {
 
-    /* ------------------ fase de preparação / primeira barreira -------------- */
-    srand(time(NULL) ^ (pthread_self() << 16));
+    // -------------------------- primeira barreira ------------------------------------------
+    // semente única por processo, combina tempo atual e PID para gerar números aleatórios diferentes entre processos
+    srand(time(NULL) ^ (getpid() << 16));  
     int s = rand() % num_procs;
     sleep(s);
 
@@ -31,6 +26,7 @@ void* ciclo_cliente(shared_data_t *S, int recurso, int id, int num_procs) {
     process_barrier(&S->barr);  
     printf( "**Processo: %d saindo da barreira\n", id );              
     
+    // ----------------------------------- ciclos ------------------------------------------
     for (int i = 0; i < MAX_USOS; i++) {
         
         // (A) prólogo  
@@ -52,21 +48,10 @@ void* ciclo_cliente(shared_data_t *S, int recurso, int id, int num_procs) {
         sleep(s_epilogo);
     }
 
-    /* ----------- segunda barreira (todos concluíram o laço) -------------- */
+    // -------------------------- segunda barreira ------------------------------------------
     printf( "--Processo: %d chegando novamente na barreira\n", id );
     process_barrier(&S->barr);
     printf( "++Processo: %d saindo da barreira novamente\n", id );
-
-    // quem chamou a funcao exit primeiro
-    // semaforo pra acessar um de cada vez
-    sem_wait(&S->lock_termino);
-
-    // Armazena o id na posição correta do vetor
-    S->ordem_termino[S->prox_indice_termino] = id;
-    // Incrementa o índice para a próxima posição
-    S->prox_indice_termino++;
-    
-    sem_post(&S->lock_termino);
 
     return NULL;
 }
@@ -74,24 +59,22 @@ void* ciclo_cliente(shared_data_t *S, int recurso, int id, int num_procs) {
 int main(int argc, char *argv[]) {
 
     if (argc != 2) {
-        // imprime tipo "Uso: ./programa <num_processos>"
         fprintf(stderr, "Uso: %s <num_processos>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    int num_procs = atoi(argv[1]);  // Le o numero de processos da linha de comando 
-
+    int num_procs = atoi(argv[1]);  // le o numero de processos da linha de comando 
     int shmid;
     shared_data_t *shared;
 
-    // Retorna um identificador para o seg. de memoria compartilhada
+    // retorna um identificador para o seg. de memoria compartilhada
     shmid = shmget(SHM_KEY, sizeof(shared_data_t), IPC_CREAT|0644);
     if (shmid == -1) {
         perror("Shared memory");
         return 1;
     }
 
-    // Conecta o id ao segmento para obter um ponteiro para ele.
+    // conecta o id ao segmento para obter um ponteiro para ele
     shared = (shared_data_t *) shmat(shmid, NULL, 0);
     if (shared == (void *) -1) {
         perror("Shared memory attach");
@@ -101,14 +84,12 @@ int main(int argc, char *argv[]) {
     // inicializa as estruturas compartilhadas
     init_fifoQ(&shared->fila, num_procs);
     init_barr(&shared->barr, num_procs);
-    shared->prox_indice_termino = 0;
-    sem_init(&shared->lock_termino, 1, 1); // 1 = compartilhado entre processos
 
-    // Gera um número aleatório entre 0 e 99
+    // gera um número aleatório entre 0 e 99
     int recurso = rand() % 100;
  
     int nProc = 0;  
-    // fork para criar os processos filhos
+    // fork para criar os processos filhos  (o pai será o processo lógico 0, e os filhos de 1 até num_procs-1)
     pid_t pids[num_procs];
     for (int i = 1; i < num_procs; i++) {
         pid_t pid = fork();
@@ -117,41 +98,31 @@ int main(int argc, char *argv[]) {
             ciclo_cliente(shared, recurso, i, num_procs);
             exit(0);
         }
-        pids[i] = pid;
+        pids[i] = pid; // armazena o PID real do processo filho recem criado
     }
 
+    // verifica se este eh o processo pai (somente o pai executa)
     if (nProc == 0) {
         ciclo_cliente(shared, recurso, 0, num_procs);  
 
-        // // Espera cada filho terminar
-        // for (int i = 1; i < num_procs; ++i) {
-        //     int status;
-        //     pid_t pid_terminou = wait(&status);  // espera qualquer filho
+        // espera cada filho terminar
+        for (int i = 1; i < num_procs; ++i) {
+            int status;
+            pid_t pid_terminou = wait(&status);  // espera qualquer filho
             
-        //     // Descobre o número lógico correspondente ao PID
-        //     for (int j = 1; j < num_procs; ++j) {
-        //         if (pids[j] == pid_terminou) {
-        //             printf("+++ Filho de número lógico %d e pid %d terminou!\n", j, pid_terminou);
-        //             break;
-        //         }
-        //     }
-        // }
-
-        // imprime os filhos na ordem em que terminaram
-        for (int i = 0; i < num_procs; ++i) {
-            int num_logico = shared->ordem_termino[i];
-            // exclui a main
-            if (num_logico != 0) {
-                pid_t pid = pids[num_logico];
-                printf("++++ Filho de número lógico %d e pid %d terminou!\n", num_logico, pid);
+            // busca o número lógico correspondente ao PID do filho que terminou
+            for (int j = 1; j < num_procs; ++j) {
+                if (pids[j] == pid_terminou) {
+                    printf("+++ Filho de número lógico %d e pid %d terminou!\n", j, pid_terminou);
+                    break;
+                }
             }
         }
-        
-        // Limpeza
+
+        // limpeza
         sem_destroy(&shared->fila.lock);
         sem_destroy(&shared->barr.mutex);
         sem_destroy(&shared->barr.semaforo);
-        sem_destroy(&shared->lock_termino);
         shmctl(shmid, IPC_RMID, NULL);
     }
     

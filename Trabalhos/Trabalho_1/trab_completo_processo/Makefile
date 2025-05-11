@@ -1,12 +1,12 @@
 # Nome do executável
-TARGET = trab
+TARGET = trab1
 
 # Compilador e flags
 CC = gcc
-CFLAGS = -Wall -pthread
+CFLAGS = -Wall
 
 # Arquivos-fonte
-SRCS = trab_processo.c barrier.c fifo.c
+SRCS = trab1.c barrier.c fifo.c
 
 # Arquivos objeto (gera .o para cada .c)
 OBJS = $(SRCS:.c=.o)

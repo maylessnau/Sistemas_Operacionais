@@ -1,6 +1,6 @@
 #include "barrier.h"
 
-/* Inicializa */
+// inicializa 
 void init_barr (barrier_t *barr, int n) {
     barr->total = n;
     barr->cont = 0;
@@ -8,7 +8,7 @@ void init_barr (barrier_t *barr, int n) {
     sem_init(&barr->semaforo, 1, 0);       // bloqueado inicialmente
 }
 
-/* Controle da barreira */
+// controle da barreira 
 void process_barrier(barrier_t *barr) {
     sem_wait (&barr->mutex); // trava o acesso pra acessar cont com seguranca
     barr->cont++;            // um processo chegou entao incrementa

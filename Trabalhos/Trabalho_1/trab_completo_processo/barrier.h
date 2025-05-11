@@ -6,12 +6,9 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <semaphore.h>
-#include <fcntl.h> // para O_CREAT, O_EXCL
-#include <sys/mman.h> // mmap
 #include <time.h>
 
-/* Definicao da barreira */
-
+// definicao da barreira 
 typedef struct shmseg {
     int total;            // numero total de processos que devem esperar
     int cont;             // contador de quantos ja chegaram
@@ -20,11 +17,8 @@ typedef struct shmseg {
  } barrier_t;
 
 
-/* Inicializa */
 void init_barr (barrier_t *barr, int n);
-/* Controle da barreira */
 void process_barrier(barrier_t *barr);
-
 
 #endif
 
