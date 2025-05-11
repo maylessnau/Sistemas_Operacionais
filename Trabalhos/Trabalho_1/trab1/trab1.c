@@ -1,6 +1,6 @@
 // Autoras:
 // Barbara Reis dos Santos - GRR: 20222538 
-// Mayara Lessnau de Figueiredo Neves - GRR: 
+// Mayara Lessnau de Figueiredo Neves - GRR: 20235083 
 
 #include "barrier.h"
 #include "fifo.h"
@@ -63,7 +63,14 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    int num_procs = atoi(argv[1]);  // le o numero de processos da linha de comando 
+    int num_procs = atoi(argv[1]);  // le o numero de processos da linha de comando
+    
+    // se o número de processos for maior que 100 para o programa: tamanho máximo do buffer atingido
+    if (num_procs > 100) {
+        fprintf(stderr, "Número de processos maior que o esperado.(MAX = 100)\n");
+        exit(EXIT_FAILURE);
+    }
+
     int shmid;
     shared_data_t *shared;
 
